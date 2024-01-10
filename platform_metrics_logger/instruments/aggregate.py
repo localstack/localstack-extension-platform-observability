@@ -36,9 +36,6 @@ class RequestCounter(Instrument):
 class ServiceMetrics(Instrument):
     name = "service_metrics"
 
-    def __init__(self):
-        self.mutex = threading.RLock()
-
     def update_sqs(self, response: dict):
         from localstack.services.sqs.models import FifoQueue, StandardQueue, sqs_stores
 

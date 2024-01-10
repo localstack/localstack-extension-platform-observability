@@ -4,7 +4,7 @@ import time
 class Instrument:
     name: str
 
-    def measure_and_report(self, result: dict) -> None:
+    def measure_and_report(self, records: []) -> None:
         raise NotImplementedError
 
 

@@ -41,3 +41,8 @@ Fetch aggregated metrics
 ```bash
 curl localhost:4566/_extension/metrics/all
 ```
+
+Find lambda traces in
+```bash
+/var/lib/localstack/cache/metrics/lambda-traces/
+```

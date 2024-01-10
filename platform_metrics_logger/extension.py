@@ -1,11 +1,19 @@
 import json
+import logging
+import threading
+from pathlib import Path
 
+from localstack import config
 from localstack.extensions.api import Extension, aws, http
 from localstack.http import route
+from localstack.utils.analytics import get_session_id
 from localstack.utils.scheduler import Scheduler
 
 from .instruments import Instrument, collect_instrument_data
 from .instruments.aggregate import RequestCounter, ServiceMetrics, SystemMetrics
+from .instruments.lambda_ import LambdaLifecycleLogger, LambdaLifecycleTracer
+
+LOG = logging.getLogger(__name__)
 
 
 class MetricsJsonPrinter:
@@ -46,6 +54,13 @@ class MyExtension(Extension):
             # TODO: make configurable
         )
         self.system_metrics = SystemMetrics()
+        self.lambda_tracer = LambdaLifecycleTracer()
+
+        logs_file = Path(
+            config.dirs.cache, "metrics/lambda-traces", f"{get_session_id()}.ndjson.log"
+        )
+        logs_file.parent.mkdir(parents=True, exist_ok=True)
+        self.lambda_trace_logger = LambdaLifecycleLogger(logs_file, self.lambda_tracer)
 
         self.logger = MetricsJsonPrinter(
             [
@@ -66,15 +81,14 @@ class MyExtension(Extension):
         self.interval = 1
 
     def on_extension_load(self):
-        print("MyExtension: extension is loaded")
+        self.lambda_tracer.patches().apply()
+        LOG.info("MyExtension: extension is loaded")
 
     def on_platform_start(self):
-        print("MyExtension: localstack is starting")
         # self.scheduler.schedule(func=self.logger.log, period=self.interval)
-        # threading.Thread(target=self.scheduler.run, daemon=True, name="metric-logger").start()
+        self.scheduler.schedule(func=self.lambda_trace_logger.flush, period=self.interval)
 
-    def on_platform_ready(self):
-        print("MyExtension: localstack is running")
+        threading.Thread(target=self.scheduler.run, daemon=True, name="metric-logger").start()
 
     def on_platform_shutdown(self):
         self.scheduler.close()
