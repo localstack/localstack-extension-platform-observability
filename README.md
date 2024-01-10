@@ -32,3 +32,12 @@ To distribute your extension, simply upload it to your github account. Your exte
 ```bash
 localstack extensions install "git+https://github.com/localstack/localstack-extension-system-metrics-logger/#egg=localstack-extension-system-metrics-logger"
 ```
+
+## Usage
+
+
+Fetch aggregated metrics
+
+```bash
+curl localhost:4566/_extension/metrics/all
+```

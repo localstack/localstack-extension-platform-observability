@@ -3,9 +3,22 @@ import threading
 import time
 
 from localstack.extensions.api import Extension, aws, http
+from localstack.http import route
 from localstack.utils.scheduler import Scheduler
 
 from .instruments import Instrument, RequestCounter, ServiceMetrics, SystemMetrics
+
+
+def collect_instrument_data(instruments: list[Instrument]) -> dict:
+    metrics = {
+        "timestamp": int(time.time() * 100) / 100,
+    }
+
+    for instrument in instruments:
+        metrics[instrument.name] = dict()
+        instrument.measure_and_report(metrics[instrument.name])
+
+    return metrics
 
 
 class MetricsJsonPrinter:
@@ -13,15 +26,16 @@ class MetricsJsonPrinter:
         self.instruments = instruments
 
     def log(self):
-        metrics = {
-            "timestamp": int(time.time() * 100) / 100,
-        }
+        print(json.dumps(collect_instrument_data(self.instruments)))
 
-        for instrument in self.instruments:
-            metrics[instrument.name] = dict()
-            instrument.measure_and_report(metrics[instrument.name])
 
-        print(json.dumps(metrics))
+class MetricsEndpoint(Extension):
+    def __init__(self, instruments: list[Instrument]):
+        self.instruments = instruments
+
+    @route("/_extension/metrics/all")
+    def get_all(self, request):
+        return collect_instrument_data(self.instruments)
 
 
 class MyExtension(Extension):
@@ -53,6 +67,13 @@ class MyExtension(Extension):
                 self.system_metrics,
             ]
         )
+        self.aggregate_endpoint = MetricsEndpoint(
+            [
+                self.request_counter,
+                self.service_metrics,
+                self.system_metrics,
+            ]
+        )
 
         self.scheduler = Scheduler()
         self.interval = 1
@@ -62,8 +83,8 @@ class MyExtension(Extension):
 
     def on_platform_start(self):
         print("MyExtension: localstack is starting")
-        self.scheduler.schedule(func=self.logger.log, period=self.interval)
-        threading.Thread(target=self.scheduler.run, daemon=True, name="metric-logger").start()
+        # self.scheduler.schedule(func=self.logger.log, period=self.interval)
+        # threading.Thread(target=self.scheduler.run, daemon=True, name="metric-logger").start()
 
     def on_platform_ready(self):
         print("MyExtension: localstack is running")
@@ -72,7 +93,7 @@ class MyExtension(Extension):
         self.scheduler.close()
 
     def update_gateway_routes(self, router: http.Router[http.RouteHandler]):
-        pass
+        router.add(self.aggregate_endpoint)
 
     def update_request_handlers(self, handlers: aws.CompositeHandler):
         handlers.append(self.request_counter.on_request)
