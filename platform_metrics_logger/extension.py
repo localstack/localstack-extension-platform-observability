@@ -1,24 +1,11 @@
 import json
-import threading
-import time
 
 from localstack.extensions.api import Extension, aws, http
 from localstack.http import route
 from localstack.utils.scheduler import Scheduler
 
-from .instruments import Instrument, RequestCounter, ServiceMetrics, SystemMetrics
-
-
-def collect_instrument_data(instruments: list[Instrument]) -> dict:
-    metrics = {
-        "timestamp": int(time.time() * 100) / 100,
-    }
-
-    for instrument in instruments:
-        metrics[instrument.name] = dict()
-        instrument.measure_and_report(metrics[instrument.name])
-
-    return metrics
+from .instruments import Instrument, collect_instrument_data
+from .instruments.aggregate import RequestCounter, ServiceMetrics, SystemMetrics
 
 
 class MetricsJsonPrinter:
@@ -34,7 +21,7 @@ class MetricsEndpoint(Extension):
         self.instruments = instruments
 
     @route("/_extension/metrics/all")
-    def get_all(self, request):
+    def get_all(self, request: http.Request):
         return collect_instrument_data(self.instruments)
 
 

@@ -5,12 +5,7 @@ from localstack.aws.api import RequestContext
 from localstack.aws.chain import HandlerChain
 from requests import Response
 
-
-class Instrument:
-    name: str
-
-    def measure_and_report(self, result: dict) -> None:
-        raise NotImplementedError
+from .api import Instrument
 
 
 class RequestCounter(Instrument):
