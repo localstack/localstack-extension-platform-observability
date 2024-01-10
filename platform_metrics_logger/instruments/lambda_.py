@@ -1,4 +1,5 @@
 import json
+import logging
 import threading
 import time
 from pathlib import Path
@@ -12,6 +13,8 @@ from localstack.services.lambda_.invocation.event_manager import (
 )
 from localstack.services.lambda_.invocation.lambda_models import Invocation
 from localstack.utils.patch import Patch, Patches
+
+LOG = logging.getLogger(__name__)
 
 
 class LambdaLifecycleEvent(NamedTuple):
@@ -33,9 +36,16 @@ class LambdaLifecycleLogger:
 
     def flush(self):
         with self.mutex:
-            with self.file.open("a") as fd:
-                records = [json.dumps(record._asdict()) + "\n" for record in self.tracer.flush()]
-                fd.writelines(records)
+            records = self.tracer.flush()
+            if not records:
+                return
+
+            try:
+                with self.file.open("a") as fd:
+                    records = [json.dumps(record._asdict()) + "\n" for record in records]
+                    fd.writelines(records)
+            except Exception:
+                LOG.exception("error while flushing to %s", self.file)
 
 
 class LambdaLifecycleTracer:

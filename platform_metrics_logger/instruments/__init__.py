@@ -1,6 +1,6 @@
-from .api import Instrument, collect_instrument_data
+from .core import Channel, Instrument
 
 __all__ = [
     "Instrument",
-    "collect_instrument_data",
+    "Channel",
 ]

@@ -1,11 +1,10 @@
-import resource
 import threading
 
 from localstack.aws.api import RequestContext
 from localstack.aws.chain import HandlerChain
 from requests import Response
 
-from .api import Instrument
+from .core import Channel, Instrument
 
 
 class RequestCounter(Instrument):
@@ -29,8 +28,8 @@ class RequestCounter(Instrument):
             if key in self.service_request_filter:
                 self.metrics[f"{context.service.service_name}.{context.operation.name}"] += 1
 
-    def measure_and_report(self, result: dict) -> None:
-        result.update(self.metrics)
+    def measure_and_report(self, channel: Channel) -> None:
+        channel.put(self.metrics)
 
 
 class ServiceMetrics(Instrument):
@@ -51,7 +50,7 @@ class ServiceMetrics(Instrument):
                 if isinstance(queue, StandardQueue):
                     response["sqs_queued_messages"] += queue.visible.qsize()
                 if isinstance(queue, FifoQueue):
-                    for message_group in queue.message_groups.values():
+                    for message_group in queue.message_group_queue.queue:
                         response["sqs_queued_messages"] += len(message_group.messages)
 
     def update_lambda(self, response: dict):
@@ -61,14 +60,19 @@ class ServiceMetrics(Instrument):
         for _, _, store in lambda_stores.iter_stores():
             response["lambda_functions"] += len(store.functions)
 
-    def measure_and_report(self, response: dict):
-        self.update_sqs(response)
-        self.update_lambda(response)
+    def measure_and_report(self, channel: Channel):
+        record = {}
+        self.update_sqs(record)
+        self.update_lambda(record)
+        channel.put(record)
 
 
 class SystemMetrics(Instrument):
     name = "system"
 
-    def measure_and_report(self, result: dict) -> None:
-        result["active_thread_count"]: threading.active_count()
-        result["max_rss"]: resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    def measure_and_report(self, channel: Channel) -> None:
+        record = {
+            "active_thread_count": threading.active_count(),
+            "max_rss": threading.active_count(),
+        }
+        channel.put(record)
