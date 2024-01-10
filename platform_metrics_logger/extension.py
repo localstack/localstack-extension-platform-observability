@@ -2,10 +2,10 @@ import json
 import threading
 import time
 
-from localstack.extensions.api import Extension, http, aws
+from localstack.extensions.api import Extension, aws, http
 from localstack.utils.scheduler import Scheduler
 
-from .instruments import Instrument, SystemMetrics, ServiceMetrics, RequestCounter
+from .instruments import Instrument, RequestCounter, ServiceMetrics, SystemMetrics
 
 
 class MetricsJsonPrinter:

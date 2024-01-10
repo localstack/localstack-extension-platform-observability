@@ -45,7 +45,8 @@ class ServiceMetrics(Instrument):
         self.mutex = threading.RLock()
 
     def update_sqs(self, response: dict):
-        from localstack.services.sqs.models import sqs_stores, FifoQueue, StandardQueue
+        from localstack.services.sqs.models import FifoQueue, StandardQueue, sqs_stores
+
         response["sqs_queues"] = 0
         response["sqs_queued_messages"] = 0
         response["sqs_inflight_messages"] = 0
@@ -62,7 +63,7 @@ class ServiceMetrics(Instrument):
                         response["sqs_queued_messages"] += len(message_group.messages)
 
     def update_lambda(self, response: dict):
-        response['lambda_functions'] = 0
+        response["lambda_functions"] = 0
         from localstack.services.lambda_.invocation.lambda_service import lambda_stores
 
         for _, _, store in lambda_stores.iter_stores():
