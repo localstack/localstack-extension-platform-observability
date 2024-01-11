@@ -1,7 +1,13 @@
-LocalStack Extension: System metric logger
+LocalStack Extension: Platform observability
 ===============================
 
-LocalStack extension for logging system metrics
+LocalStack extension for providing insights into the LocalStack platform in the form of service-specific traces and metrics.
+
+## Install
+
+```bash
+localstack extensions install localstack-extension-platform-observability
+```
 
 ## Install local development version
 
@@ -30,16 +36,28 @@ EXTENSION_DEV_MODE=1 localstack start
 To distribute your extension, simply upload it to your github account. Your extension can then be installed via:
 
 ```bash
-localstack extensions install "git+https://github.com/localstack/localstack-extension-system-metrics-logger/#egg=localstack-extension-system-metrics-logger"
+localstack extensions install "git+https://github.com/localstack/localstack-extension-platform-observability/#egg=localstack-extension-platform-observability"
 ```
 
 ## Usage
 
 
-Fetch aggregated metrics
+Fetch aggregated metrics and system metrics
 
 ```bash
 curl localhost:4566/_extension/metrics/all
+```
+
+Fetch SNS statistics
+
+```bash
+curl localhost:4566/_extension/metrics/sns
+```
+
+Fetch SQS statistics
+
+```bash
+curl localhost:4566/_extension/metrics/sqs
 ```
 
 Find lambda traces in
