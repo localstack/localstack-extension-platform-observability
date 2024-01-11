@@ -3,7 +3,7 @@ from typing import Iterable
 
 from localstack.services.sqs.models import FifoQueue, SqsQueue, StandardQueue, sqs_stores
 
-from platform_metrics_logger.instruments import Channel, Instrument
+from platform_observability.instruments import Channel, Instrument
 
 
 class QueueStatistics(Instrument):

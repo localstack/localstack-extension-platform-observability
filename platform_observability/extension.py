@@ -18,11 +18,11 @@ from .instruments.sqs import QueueStatistics
 LOG = logging.getLogger(__name__)
 
 
-class MyExtension(Extension):
-    name = "localstack-extension-platform-metrics-logger"
+class ObservabilityExtension(Extension):
+    name = "localstack-extension-platform-observability"
 
     def __init__(self):
-        logging.getLogger("platform_metrics_logger").setLevel(
+        logging.getLogger("platform_observability").setLevel(
             logging.DEBUG if config.DEBUG else logging.INFO
         )
 

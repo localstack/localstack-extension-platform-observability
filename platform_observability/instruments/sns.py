@@ -10,7 +10,7 @@ from localstack.services.sns.publisher import (
 )
 from localstack.utils.patch import Patches
 
-from platform_metrics_logger.instruments import Channel, Instrument
+from platform_observability.instruments import Channel, Instrument
 
 
 class TopicStatistics(Instrument):
