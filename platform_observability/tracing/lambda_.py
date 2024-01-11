@@ -1,8 +1,6 @@
-import json
 import logging
 import threading
 import time
-from pathlib import Path
 from typing import NamedTuple
 
 from localstack.services.lambda_.invocation import event_manager
@@ -23,29 +21,6 @@ class LambdaLifecycleEvent(NamedTuple):
     request_id: str
     lambda_arn: str
     failure_cause: str | None = None
-
-
-class LambdaLifecycleLogger:
-    def __init__(self, file: Path, tracer: "LambdaLifecycleTracer"):
-        self.file = file
-        self.tracer = tracer
-        self.mutex = threading.RLock()
-
-    def close(self):
-        self.flush()
-
-    def flush(self):
-        with self.mutex:
-            records = self.tracer.flush()
-            if not records:
-                return
-
-            try:
-                with self.file.open("a") as fd:
-                    records = [json.dumps(record._asdict()) + "\n" for record in records]
-                    fd.writelines(records)
-            except Exception:
-                LOG.exception("error while flushing to %s", self.file)
 
 
 class LambdaLifecycleTracer:
