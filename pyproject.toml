@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.black]
 line_length = 100
-include = '(platform_metrics_logger/.*\.py$)'
+include = '(platform_observability/.*\.py$)'
 
 [tool.isort]
 profile = 'black'

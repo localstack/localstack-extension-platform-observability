@@ -8,6 +8,7 @@ from localstack.extensions.api import Extension
 from localstack.http import Router
 from localstack.utils.analytics import get_session_id
 from localstack.utils.scheduler import Scheduler
+from werkzeug.routing import Submount
 
 from .endpoint import MetricsEndpoint
 from .instruments.aggregate import RequestCounter, ServiceMetrics, SystemMetrics
@@ -26,6 +27,7 @@ class ObservabilityExtension(Extension):
             logging.DEBUG if config.DEBUG else logging.INFO
         )
 
+        # set up instruments
         self.request_counter = RequestCounter(
             # TODO: make configurable
             service_request_filter=[
@@ -39,28 +41,26 @@ class ObservabilityExtension(Extension):
                 "lambda.Invoke",
             ]
         )
-        self.service_metrics = ServiceMetrics(
-            # TODO: make configurable
-        )
         self.system_metrics = SystemMetrics()
+        self.topic_statistics = TopicStatistics()
+        self.queue_statistics = QueueStatistics()
         self.lambda_tracer = LambdaLifecycleTracer()
 
         # /metrics endpoint
-        self.topic_statistics = TopicStatistics()
-        self.queue_statistics = QueueStatistics()
-        self.endpoint = MetricsEndpoint(
+        self.metrics_endpoint = MetricsEndpoint(
             {
-                "requests": self.request_counter,
-                "service_metrics": self.service_metrics,
-                "system_metrics": self.system_metrics,
-            },
-            queue_statistics=self.queue_statistics,
-            topic_statistics=self.topic_statistics,
+                "system": self.system_metrics,
+                "gateway": self.request_counter,
+                "sqs": self.queue_statistics,
+                "sns": self.topic_statistics,
+            }
         )
 
         # lambda trace logs
         logs_file = Path(
-            config.dirs.cache, "metrics/lambda-traces", f"{get_session_id()}.ndjson.log"
+            config.dirs.cache,
+            "observability/traces-lambda",
+            f"lambda-{get_session_id()}.ndjson.log",
         )
         logs_file.parent.mkdir(parents=True, exist_ok=True)
         logs_file.touch(exist_ok=True)
@@ -85,7 +85,7 @@ class ObservabilityExtension(Extension):
         self.scheduler.close()
 
     def update_gateway_routes(self, router: Router):
-        router.add(self.endpoint)
+        router.add(self.metrics_endpoint)
 
     def update_request_handlers(self, handlers: CompositeHandler):
         handlers.append(self.request_counter.on_request)

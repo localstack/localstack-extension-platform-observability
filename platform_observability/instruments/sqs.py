@@ -14,7 +14,6 @@ class QueueStatistics(Instrument):
 
     def measure_and_report(self, channel: Channel) -> None:
         for queue in self.iter_queues():
-            timestamp = time.time()
             delayed = len(queue.delayed)
             if isinstance(queue, StandardQueue):
                 visible = queue.visible.qsize()
@@ -34,7 +33,6 @@ class QueueStatistics(Instrument):
 
             channel.put(
                 {
-                    "timestamp": timestamp,
                     "queue": queue.arn,
                     "visible": visible,
                     "invisible": invisible,
