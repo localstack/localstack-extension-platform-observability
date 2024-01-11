@@ -8,13 +8,14 @@ from localstack.extensions.api import Extension
 from localstack.http import Router
 from localstack.utils.analytics import get_session_id
 from localstack.utils.scheduler import Scheduler
-from werkzeug.routing import Submount
 
 from .endpoint import MetricsEndpoint
-from .instruments.aggregate import RequestCounter, ServiceMetrics, SystemMetrics
-from .instruments.lambda_ import LambdaLifecycleLogger, LambdaLifecycleTracer
+from .instruments.aggregate import RequestCounter, SystemMetrics
 from .instruments.sns import TopicStatistics
 from .instruments.sqs import QueueStatistics
+from .tracing.lambda_ import LambdaLifecycleTracer
+from .tracing.lambda_sqs import LambdaSQSEventSourceTracer
+from .tracing.logging import TraceFileLogger
 
 LOG = logging.getLogger(__name__)
 
@@ -45,6 +46,7 @@ class ObservabilityExtension(Extension):
         self.topic_statistics = TopicStatistics()
         self.queue_statistics = QueueStatistics()
         self.lambda_tracer = LambdaLifecycleTracer()
+        self.lambda_sqs_event_source_tracer = LambdaSQSEventSourceTracer()
 
         # /metrics endpoint
         self.metrics_endpoint = MetricsEndpoint(
@@ -57,15 +59,21 @@ class ObservabilityExtension(Extension):
         )
 
         # lambda trace logs
-        logs_file = Path(
+        lambda_trace_file = Path(
             config.dirs.cache,
-            "observability/traces-lambda",
+            "observability/traces-lambda-events",
             f"lambda-{get_session_id()}.ndjson.log",
         )
-        logs_file.parent.mkdir(parents=True, exist_ok=True)
-        logs_file.touch(exist_ok=True)
+        lambda_sqs_trace_file = Path(
+            config.dirs.cache,
+            "observability/traces-lambda-sqs",
+            f"lambda-sqs-{get_session_id()}.ndjson.log",
+        )
 
-        self.lambda_trace_logger = LambdaLifecycleLogger(logs_file, self.lambda_tracer)
+        self.loggers = [
+            TraceFileLogger(lambda_trace_file, self.lambda_tracer),
+            TraceFileLogger(lambda_sqs_trace_file, self.lambda_sqs_event_source_tracer),
+        ]
 
         self.scheduler = Scheduler()
         self.interval = 1
@@ -73,16 +81,23 @@ class ObservabilityExtension(Extension):
     def on_extension_load(self):
         self.topic_statistics.patches().apply()
         self.lambda_tracer.patches().apply()
+        self.lambda_sqs_event_source_tracer.patches().apply()
         LOG.info("Metrics extension is loaded")
 
     def on_platform_start(self):
-        LOG.info("Starting metric scheduler")
-        # self.scheduler.schedule(func=self.logger.log, period=self.interval)
-        self.scheduler.schedule(func=self.lambda_trace_logger.flush, period=self.interval)
-        threading.Thread(target=self.scheduler.run, daemon=True, name="metric-logger").start()
+        LOG.info("Starting trace logging")
+        for logger in self.loggers:
+            logger.init_file()
+
+        for logger in self.loggers:
+            self.scheduler.schedule(func=logger.flush, period=self.interval)
+
+        threading.Thread(target=self.scheduler.run, daemon=True, name="trace-logger").start()
 
     def on_platform_shutdown(self):
         self.scheduler.close()
+        for logger in self.loggers:
+            logger.close()
 
     def update_gateway_routes(self, router: Router):
         router.add(self.metrics_endpoint)
