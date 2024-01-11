@@ -139,31 +139,35 @@ class LambdaLifecycleTracer:
             )
             return fn(self, sqs_invocation, error)
 
-        return Patches(
-            [
-                Patch.function(
-                    event_manager.LambdaEventManager.enqueue_event,
-                    _log_enqueue_event,
-                ),
-                Patch.function(
-                    event_manager.Poller.__init__,
-                    _poller_init,
-                ),
-                Patch.function(
-                    event_manager.Poller.handle_message,
-                    _log_handle_message,
-                ),
-                Patch.function(
-                    event_manager.Poller.process_success_destination,
-                    _log_process_success_destination,
-                ),
-                # Patch.function(
-                #     event_manager.Poller.process_throttles_and_system_errors,
-                #     _log_process_throttles_and_system_errors,
-                # ),
-                Patch.function(
-                    event_manager.Poller.process_failure_destination,
-                    _log_process_failure_destination,
-                ),
-            ]
+        patches = Patches()
+
+        patches.function(
+            event_manager.LambdaEventManager.enqueue_event,
+            _log_enqueue_event,
         )
+        patches.function(
+            event_manager.Poller.__init__,
+            _poller_init,
+        )
+        patches.function(
+            event_manager.Poller.handle_message,
+            _log_handle_message,
+        )
+        patches.function(
+            event_manager.Poller.process_success_destination,
+            _log_process_success_destination,
+        )
+        patches.function(
+            event_manager.Poller.process_failure_destination,
+            _log_process_failure_destination,
+        )
+
+        try:
+            # FIXME: this is for
+            patches.function(
+                event_manager.Poller.process_throttles_and_system_errors,
+                _log_process_throttles_and_system_errors,
+            )
+        except AttributeError:
+            pass
+        return patches

@@ -12,6 +12,8 @@ from localstack.utils.scheduler import Scheduler
 from .endpoint import MetricsEndpoint
 from .instruments.aggregate import RequestCounter, ServiceMetrics, SystemMetrics
 from .instruments.lambda_ import LambdaLifecycleLogger, LambdaLifecycleTracer
+from .instruments.sns import TopicStatistics
+from .instruments.sqs import QueueStatistics
 
 LOG = logging.getLogger(__name__)
 
@@ -44,12 +46,16 @@ class MyExtension(Extension):
         self.lambda_tracer = LambdaLifecycleTracer()
 
         # /metrics endpoint
+        self.topic_statistics = TopicStatistics()
+        self.queue_statistics = QueueStatistics()
         self.endpoint = MetricsEndpoint(
             {
                 "requests": self.request_counter,
                 "service_metrics": self.service_metrics,
                 "system_metrics": self.system_metrics,
-            }
+            },
+            queue_statistics=self.queue_statistics,
+            topic_statistics=self.topic_statistics,
         )
 
         # lambda trace logs
@@ -65,6 +71,7 @@ class MyExtension(Extension):
         self.interval = 1
 
     def on_extension_load(self):
+        self.topic_statistics.patches().apply()
         self.lambda_tracer.patches().apply()
         LOG.info("Metrics extension is loaded")
 
