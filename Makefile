@@ -25,7 +25,7 @@ format:            		  ## Run black and isort code formatter
 	$(VENV_RUN); python -m isort .; python -m black .
 
 install: venv
-	$(VENV_RUN); python setup.py develop
+	$(VENV_RUN); python -m pip install -e .[dev]
 
 dist: venv
 	$(VENV_RUN); python setup.py sdist bdist_wheel
